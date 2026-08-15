@@ -1,23 +1,27 @@
 /**
  * Server-only helpers for admin image uploads.
  *
- * Images are committed into the repository's `public/images/...` folder through
- * the GitHub Contents API. The GitHub write token lives only in the server
- * environment (`GITHUB_TOKEN`) and is never sent to the browser.
+ * Images are written as ordinary static assets into the project's
+ * `public/images/...` folder, so the deployed site serves them from
+ * `/images/<folder>/<file>` with no external storage service involved.
  *
- * Firebase Cloud Storage is intentionally NOT used. Firebase Authentication and
- * Firestore keep working exactly as before.
+ * NOTE ON HOSTING: a deployed site (Cloudflare) has a read-only filesystem, so
+ * writing new images only works while the project runs locally / in the Lovable
+ * dev environment. In production the upload is refused with a clear message
+ * instead of pretending to have saved the file. After uploading locally the
+ * project is rebuilt/redeployed and the images ship as static assets.
+ *
+ * No GitHub token, no GitHub API and no Firebase Cloud Storage are used.
+ * Firebase Authentication and Firestore keep working exactly as before.
  */
+import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { FIREBASE_PROJECT_ID, FIREBASE_WEB_API_KEY } from "./firebase-project";
 
 export const MEDIA_FOLDERS = ["programs", "members", "blogs", "other"] as const;
 export type MediaFolder = (typeof MEDIA_FOLDERS)[number];
 
-export const ALLOWED_IMAGE_MIME = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-] as const;
+export const ALLOWED_IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"] as const;
 export const ALLOWED_IMAGE_EXT = ["jpg", "jpeg", "png", "webp"] as const;
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB after client-side compression
 
@@ -38,15 +42,11 @@ export function normaliseFolder(folder: string): MediaFolder {
 export function repoPathFromPublicPath(publicPath: string): string | null {
   const match = /^\/images\/(programs|members|blogs|other)\/([A-Za-z0-9._-]+)$/.exec(publicPath);
   if (!match) return null;
-  const ext = match[2]!.split(".").pop()?.toLowerCase() ?? "";
+  const file = match[2]!;
+  if (file.includes("..")) return null;
+  const ext = file.split(".").pop()?.toLowerCase() ?? "";
   if (!(ALLOWED_IMAGE_EXT as readonly string[]).includes(ext)) return null;
-  return `public/images/${match[1]}/${match[2]}`;
-}
-
-export function uniqueFileName(folder: MediaFolder, ext: string): string {
-  const prefix = folder === "other" ? "image" : folder.replace(/s$/, "");
-  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-  return `${prefix}-${id}.${ext}`;
+  return `public/images/${match[1]}/${file}`;
 }
 
 /* ------------------------------ authorisation ------------------------------ */
@@ -80,79 +80,78 @@ export async function requireAdmin(idToken: string): Promise<string> {
   return uid;
 }
 
-/* --------------------------------- GitHub --------------------------------- */
+/* ------------------------------- filesystem -------------------------------- */
 
-type GitHubEnv = { token: string; repo: string; branch: string };
+const NOT_WRITABLE =
+  "Images can only be added while the site is running in the development environment " +
+  "(the published site's files are read-only). Please upload the image in the editor/preview, " +
+  "then publish the site again.";
 
-function githubEnv(): GitHubEnv {
-  const token = "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";
-  if (!token) {
-    throw new Error(
-      "Image uploads are not configured yet: the server is missing its GitHub token.",
-    );
-  }
-  return {
-    token,
-    repo: "Poomani21/turtle-wings-bloom",
-    branch: "main",
-  };
+function publicRoot(): string {
+  return path.join(process.cwd(), "public", "images");
 }
 
-function ghHeaders(token: string) {
-  return {
-    Authorization: `Bearer ${token}`,
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-    "content-type": "application/json",
-  };
+/** Short, content-based id so re-uploading the same image reuses the same file. */
+async function contentId(base64: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(base64));
+  return [...new Uint8Array(digest)]
+    .slice(0, 8)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-/** Commits a file and returns the site-relative public path. */
+function fileNameFor(folder: MediaFolder, id: string, ext: string): string {
+  const prefix = folder === "other" ? "image" : folder.replace(/s$/, "");
+  return `${prefix}-${id}.${ext}`;
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/**
+ * Writes the image into `public/images/<folder>/` and returns the site-relative
+ * public path. Identical bytes reuse the existing file (no duplicates).
+ */
 export async function commitImage(args: {
   folder: MediaFolder;
   base64: string;
   ext: string;
 }): Promise<string> {
-  const { token, repo, branch } = githubEnv();
-  const name = uniqueFileName(args.folder, args.ext);
-  const repoPath = `public/images/${args.folder}/${name}`;
+  const id = await contentId(args.base64);
+  const name = fileNameFor(args.folder, id, args.ext);
+  const dir = path.join(publicRoot(), args.folder);
+  const filePath = path.join(dir, name);
+  const publicPath = `/images/${args.folder}/${name}`;
 
-  const res = await fetch(`https://api.github.com/repos/${repo}/contents/${repoPath}`, {
-    method: "PUT",
-    headers: ghHeaders(token),
-    body: JSON.stringify({
-      message: `chore(media): add ${repoPath}`,
-      content: args.base64,
-      branch,
-    }),
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Upload failed (${res.status}). ${detail.slice(0, 180)}`);
+  try {
+    const existing = await stat(filePath).catch(() => null);
+    if (existing?.isFile()) return publicPath; // same image already saved
+    await mkdir(dir, { recursive: true });
+    await writeFile(filePath, base64ToBytes(args.base64));
+    // Confirm the write really landed before reporting success.
+    const written = await readFile(filePath).catch(() => null);
+    if (!written || written.length === 0) throw new Error("empty");
+  } catch {
+    throw new Error(NOT_WRITABLE);
   }
-  return `/images/${args.folder}/${name}`;
+  return publicPath;
 }
 
-/** Deletes a single committed image. Returns false when the file was not found. */
+/** Deletes a single managed image. Returns false when the file was not found. */
 export async function removeImage(publicPath: string): Promise<boolean> {
   const repoPath = repoPathFromPublicPath(publicPath);
   if (!repoPath) return false;
-  const { token, repo, branch } = githubEnv();
-
-  const head = await fetch(
-    `https://api.github.com/repos/${repo}/contents/${repoPath}?ref=${branch}`,
-    { headers: ghHeaders(token) },
-  );
-  if (head.status === 404) return false;
-  if (!head.ok) throw new Error(`Could not read the image from the repository (${head.status}).`);
-  const { sha } = (await head.json()) as { sha?: string };
-  if (!sha) return false;
-
-  const res = await fetch(`https://api.github.com/repos/${repo}/contents/${repoPath}`, {
-    method: "DELETE",
-    headers: ghHeaders(token),
-    body: JSON.stringify({ message: `chore(media): remove ${repoPath}`, sha, branch }),
-  });
-  if (!res.ok) throw new Error(`Could not delete the image (${res.status}).`);
-  return true;
+  const filePath = path.join(process.cwd(), repoPath);
+  try {
+    const existing = await stat(filePath).catch(() => null);
+    if (!existing?.isFile()) return false;
+    await unlink(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
