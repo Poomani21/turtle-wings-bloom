@@ -24,7 +24,7 @@ export const Route = createFileRoute("/videos")({
 });
 
 function embedUrl(url: string): string | null {
-  const youtube = url.match(/(?:youtu\.be\/|v=)([\w-]{6,})/);
+  const youtube = url.match(/(?:youtu\.be\/|\/shorts\/|\/embed\/|[?&]v=)([\w-]{6,})/);
   if (youtube) return `https://www.youtube-nocookie.com/embed/${youtube[1]}`;
   return null;
 }
