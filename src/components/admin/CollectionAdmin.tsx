@@ -1,7 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
-import { adminDelete, adminList, adminSave, type CollectionName } from "@/lib/cms";
+import {
+  adminDeleteWithMedia,
+  adminList,
+  adminSave,
+  type CollectionName,
+} from "@/lib/cms";
 import { MediaUpload } from "@/components/admin/MediaUpload";
 
 
@@ -58,8 +63,10 @@ export function CollectionAdmin({
     },
   });
 
+  // Deleting a record also removes the images it owned, unless another record
+  // still points at the same file.
   const remove = useMutation({
-    mutationFn: (id: string) => adminDelete(name, id),
+    mutationFn: (row: Row) => adminDeleteWithMedia(name, row),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", name] }),
   });
 
