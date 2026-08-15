@@ -57,22 +57,16 @@ function BlogPost() {
   const { post: staticPost } = Route.useLoaderData();
   const { slug } = Route.useParams();
 
-  const { data: firebasePosts, isPending } = useQuery({
-    queryKey: ["published-firebase-blogs"],
-    queryFn: fetchPublishedFirebasePosts,
-    initialData: [],
-    staleTime: 30_000,
-    retry: 1,
-  });
+  const { posts: firebasePosts, isLoading } = usePublishedFirebasePosts();
 
-  const all = mergePostsBySlug(staticPosts, firebasePosts ?? []);
+  const all = mergePostsBySlug(staticPosts, firebasePosts);
   // An admin post with the same slug is the newer edit of that article, so it
   // takes precedence; otherwise the static article is used.
-  const firebasePost = (firebasePosts ?? []).find((p) => p.slug === slug);
+  const firebasePost = firebasePosts.find((p) => p.slug === slug);
   const post = firebasePost ?? staticPost;
 
   if (post) return <BlogPostView post={post} related={all} />;
-  if (isPending) {
+  if (isLoading) {
     return (
       <div className="container-site py-24 text-sm text-muted-foreground">Loading article…</div>
     );
