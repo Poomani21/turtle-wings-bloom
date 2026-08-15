@@ -112,7 +112,7 @@ function Contact() {
               Find us on the map
             </h2>
             <p className="mt-2 text-sm break-words text-muted-foreground">
-              {contact.address.join(", ")}
+              {contact.address.map((line) => line.replace(/,\s*$/, "")).join(", ")}
             </p>
             <div className="mt-6 w-full max-w-full overflow-hidden rounded-2xl border border-border shadow-card">
               <iframe
