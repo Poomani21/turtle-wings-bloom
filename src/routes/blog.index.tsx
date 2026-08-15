@@ -92,7 +92,7 @@ function BlogIndex() {
                     <span className="mt-2 block text-sm leading-relaxed break-words text-muted-foreground">
                       {post.excerpt}
                     </span>
-                    <span className="mt-4 inline-flex items-center gap-2 self-start pt-1 text-sm font-extrabold text-forest-deep">
+                    <span className="mt-auto inline-flex items-center gap-2 self-start pt-4 text-sm font-extrabold text-forest-deep">
                       Read more
                       <ArrowRight
                         aria-hidden="true"
