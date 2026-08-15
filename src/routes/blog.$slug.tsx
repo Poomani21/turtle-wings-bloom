@@ -1,10 +1,9 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CalendarDays, User } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { CtaBand } from "@/components/site/Sections";
 import { getPost, posts as staticPosts, formatDate, type Post } from "@/lib/blog-data";
-import { fetchPublishedFirebasePosts, mergePostsBySlug } from "@/lib/blog-firebase";
+import { mergePostsBySlug, usePublishedFirebasePosts } from "@/lib/blog-firebase";
 
 export const Route = createFileRoute("/blog/$slug")({
   loader: ({ params }) => {
