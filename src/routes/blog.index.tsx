@@ -28,15 +28,9 @@ function BlogIndex() {
   // refresh). Published Firebase posts are merged in as soon as they arrive; if
   // Firestore is unavailable the query resolves to an empty list instead of
   // failing, so the page never blanks out.
-  const { data: firebasePosts } = useQuery({
-    queryKey: ["published-firebase-blogs"],
-    queryFn: fetchPublishedFirebasePosts,
-    initialData: [],
-    staleTime: 30_000,
-    retry: 1,
-  });
+  const { posts: firebasePosts } = usePublishedFirebasePosts();
 
-  const allPosts = mergePostsBySlug(staticPosts, firebasePosts ?? []);
+  const allPosts = mergePostsBySlug(staticPosts, firebasePosts);
 
   return (
     <>
