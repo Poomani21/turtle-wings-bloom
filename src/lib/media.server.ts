@@ -85,7 +85,7 @@ export async function requireAdmin(idToken: string): Promise<string> {
 type GitHubEnv = { token: string; repo: string; branch: string };
 
 function githubEnv(): GitHubEnv {
-  const token = process.env["GITHUB_TOKEN"];
+  const token = "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";
   if (!token) {
     throw new Error(
       "Image uploads are not configured yet: the server is missing its GitHub token.",
@@ -93,8 +93,8 @@ function githubEnv(): GitHubEnv {
   }
   return {
     token,
-    repo: process.env["GITHUB_REPO"] ?? "Poomani21/turtle-wings-admin-ff914d93",
-    branch: process.env["GITHUB_BRANCH"] ?? "main",
+    repo: "Poomani21/turtle-wings-bloom",
+    branch: "main",
   };
 }
 
