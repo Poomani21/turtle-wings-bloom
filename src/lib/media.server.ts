@@ -1,18 +1,7 @@
 /**
  * Server-only helpers for admin image uploads.
  *
- * Images are written as ordinary static assets into the project's
- * `public/images/...` folder, so the deployed site serves them from
- * `/images/<folder>/<file>` with no external storage service involved.
- *
- * NOTE ON HOSTING: a deployed site (Cloudflare) has a read-only filesystem, so
- * writing new images only works while the project runs locally / in the Lovable
- * dev environment. In production the upload is refused with a clear message
- * instead of pretending to have saved the file. After uploading locally the
- * project is rebuilt/redeployed and the images ship as static assets.
- *
- * No GitHub token, no GitHub API and no Firebase Cloud Storage are used.
- * Firebase Authentication and Firestore keep working exactly as before.
+ * Supports both Cloudflare R2 object storage (deployed) and Node.js static filesystem (localhost).
  */
 import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -24,6 +13,28 @@ export type MediaFolder = (typeof MEDIA_FOLDERS)[number];
 export const ALLOWED_IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"] as const;
 export const ALLOWED_IMAGE_EXT = ["jpg", "jpeg", "png", "webp"] as const;
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB after client-side compression
+
+/**
+ * STATIC R2 BASE URL
+ * Replace with "https://media.turtlewings.in" when your custom domain is connected.
+ */
+const R2_PUBLIC_BASE_URL = "https://pub-697898424e3a4c4fa8dd35b5a8de37e3.r2.dev";
+
+/**
+ * Automatically retrieves the Cloudflare R2 bucket binding without requiring `env` arguments.
+ */
+function getBucket(): any {
+  if (typeof globalThis !== "undefined") {
+    const g = globalThis as any;
+    if (g.MEDIA_BUCKET) return g.MEDIA_BUCKET;
+    if (g.env?.MEDIA_BUCKET) return g.env.MEDIA_BUCKET;
+    if (g.__env__?.MEDIA_BUCKET) return g.__env__.MEDIA_BUCKET;
+    if (typeof process !== "undefined" && (process as any).env?.MEDIA_BUCKET) {
+      return (process as any).env.MEDIA_BUCKET;
+    }
+  }
+  return null;
+}
 
 export function normaliseFolder(folder: string): MediaFolder {
   const leaf = folder.split("/").pop()?.toLowerCase() ?? "other";
@@ -38,9 +49,9 @@ export function normaliseFolder(folder: string): MediaFolder {
   return map[leaf] ?? "other";
 }
 
-/** `/images/blogs/blog-abc123.webp` -> `public/images/blogs/blog-abc123.webp` */
+/** Parses image path/URL and returns the repository path for local disk. */
 export function repoPathFromPublicPath(publicPath: string): string | null {
-  const match = /^\/images\/(programs|members|blogs|other)\/([A-Za-z0-9._-]+)$/.exec(publicPath);
+  const match = /(?:^\/images\/|(?:\/[^\/]+)*\/)(programs|members|blogs|other)\/([A-Za-z0-9._-]+)$/.exec(publicPath);
   if (!match) return null;
   const file = match[2]!;
   if (file.includes("..")) return null;
@@ -49,13 +60,17 @@ export function repoPathFromPublicPath(publicPath: string): string | null {
   return `public/images/${match[1]}/${file}`;
 }
 
+/** Extracts the R2 key (e.g., "members/member-abc123.webp") from local or public URLs. */
+function r2KeyFromPublicPath(publicPath: string): string | null {
+  const match = /(?:^\/images\/|(?:\/[^\/]+)*\/)(programs|members|blogs|other)\/([A-Za-z0-9._-]+)$/.exec(publicPath);
+  if (!match) return null;
+  const file = match[2]!;
+  if (file.includes("..")) return null;
+  return `${match[1]}/${file}`;
+}
+
 /* ------------------------------ authorisation ------------------------------ */
 
-/**
- * Verifies a Firebase ID token and confirms the user is on the Firestore
- * `admins/{uid}` allowlist. Both checks use Google's REST APIs with the
- * caller's own token — no service account and no privileged key required.
- */
 export async function requireAdmin(idToken: string): Promise<string> {
   if (!idToken || idToken.length < 20) throw new Error("Not signed in.");
 
@@ -80,18 +95,12 @@ export async function requireAdmin(idToken: string): Promise<string> {
   return uid;
 }
 
-/* ------------------------------- filesystem -------------------------------- */
-
-const NOT_WRITABLE =
-  "Images can only be added while the site is running in the development environment " +
-  "(the published site's files are read-only). Please upload the image in the editor/preview, " +
-  "then publish the site again.";
+/* ------------------------------- filesystem & R2 -------------------------------- */
 
 function publicRoot(): string {
   return path.join(process.cwd(), "public", "images");
 }
 
-/** Short, content-based id so re-uploading the same image reuses the same file. */
 async function contentId(base64: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(base64));
   return [...new Uint8Array(digest)]
@@ -113,8 +122,9 @@ function base64ToBytes(base64: string): Uint8Array {
 }
 
 /**
- * Writes the image into `public/images/<folder>/` and returns the site-relative
- * public path. Identical bytes reuse the existing file (no duplicates).
+ * Adds / Uploads an image.
+ * - On Cloudflare R2: Uploads object to R2 and returns full URL (`https://pub-....r2.dev/members/file.webp`).
+ * - On Localhost: Saves file directly to `./public/images/<folder>/file.webp`.
  */
 export async function commitImage(args: {
   folder: MediaFolder;
@@ -123,26 +133,57 @@ export async function commitImage(args: {
 }): Promise<string> {
   const id = await contentId(args.base64);
   const name = fileNameFor(args.folder, id, args.ext);
+  const key = `${args.folder}/${name}`;
+  const imageBytes = base64ToBytes(args.base64);
+  const bucket = getBucket();
+
+  // 1. CLOUDFLARE R2 ENVIRONMENT (Dev Cloud & Production)
+  if (bucket) {
+    await bucket.put(key, imageBytes, {
+      httpMetadata: { contentType: `image/${args.ext}` },
+    });
+    return `${R2_PUBLIC_BASE_URL}/${key}`;
+  }
+
+  // 2. LOCALHOST FALLBACK (Node.js File System)
   const dir = path.join(publicRoot(), args.folder);
   const filePath = path.join(dir, name);
   const publicPath = `/images/${args.folder}/${name}`;
 
   try {
     const existing = await stat(filePath).catch(() => null);
-    if (existing?.isFile()) return publicPath; // same image already saved
+    if (existing?.isFile()) return publicPath;
     await mkdir(dir, { recursive: true });
-    await writeFile(filePath, base64ToBytes(args.base64));
-    // Confirm the write really landed before reporting success.
+    await writeFile(filePath, imageBytes);
     const written = await readFile(filePath).catch(() => null);
     if (!written || written.length === 0) throw new Error("empty");
+    return publicPath;
   } catch {
-    throw new Error(NOT_WRITABLE);
+    throw new Error("Unable to save image locally.");
   }
-  return publicPath;
 }
 
-/** Deletes a single managed image. Returns false when the file was not found. */
+/**
+ * Removes / Deletes an image.
+ * - On Cloudflare R2: Deletes object from R2 bucket.
+ * - On Localhost: Unlinks file from local filesystem.
+ */
 export async function removeImage(publicPath: string): Promise<boolean> {
+  const bucket = getBucket();
+
+  // 1. CLOUDFLARE R2 ENVIRONMENT
+  if (bucket) {
+    const key = r2KeyFromPublicPath(publicPath);
+    if (!key) return false;
+    try {
+      await bucket.delete(key);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // 2. LOCALHOST FALLBACK
   const repoPath = repoPathFromPublicPath(publicPath);
   if (!repoPath) return false;
   const filePath = path.join(process.cwd(), repoPath);
