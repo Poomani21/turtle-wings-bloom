@@ -5,7 +5,6 @@ import type { Post } from "./blog-data";
 /**
  * Adapters that let published Firebase blogs reuse the existing static
  * `Post` shape (and therefore the existing blog card / detail markup).
- * No new Firebase fetching logic — `fetchPublishedBlogs()` is reused.
  */
 export function blogDocToPost(doc: BlogDoc): Post {
   const paragraphs = (doc.content ?? "")
@@ -28,20 +27,27 @@ export function blogDocToPost(doc: BlogDoc): Post {
 
 /**
  * Published Firebase posts, mapped to `Post`.
- * Throws on failure so React Query can surface a real error state instead of
- * silently falling back to static content.
+ * Never throws: if Firestore is unavailable the caller simply gets an empty
+ * list, so the static articles keep rendering.
  */
 export async function fetchPublishedFirebasePosts(): Promise<Post[]> {
-  const docs = await fetchPublishedBlogs();
-  return docs.filter((d) => d.isPublished && d.slug).map(blogDocToPost);
+  try {
+    const docs = await fetchPublishedBlogs();
+    return docs.filter((d) => d.isPublished && d.slug).map(blogDocToPost);
+  } catch {
+    return [];
+  }
 }
 
 /**
- * Firebase is the source of truth. Static posts are demo content only and are
- * used when Firestore has no published posts at all — they never override,
- * re-order or shadow a Firebase post.
+ * Static posts are permanent website content and are ALWAYS included.
+ * Published Firebase posts are added on top; when a Firebase post reuses a
+ * static slug it replaces that single card (no duplicates), and the combined
+ * list is ordered newest first.
  */
-export function resolvePosts(firebasePosts: Post[], demoPosts: Post[]): Post[] {
-  return firebasePosts.length > 0 ? firebasePosts : demoPosts;
+export function mergePostsBySlug(staticPosts: Post[], firebasePosts: Post[]): Post[] {
+  const merged = new Map<string, Post>();
+  for (const post of staticPosts) if (post.slug) merged.set(post.slug, post);
+  for (const post of firebasePosts) if (post.slug) merged.set(post.slug, post);
+  return [...merged.values()].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
 }
-
