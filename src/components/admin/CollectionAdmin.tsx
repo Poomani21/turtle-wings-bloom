@@ -252,7 +252,7 @@ export function CollectionAdmin({
                   <button
                     type="button"
                     onClick={() => {
-                      if (confirm("Delete this entry? This cannot be undone.")) remove.mutate(row.id);
+                      if (confirm("Delete this entry? This cannot be undone.")) remove.mutate(row);
                     }}
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-destructive/40 px-3 text-sm font-bold text-destructive"
                   >

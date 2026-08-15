@@ -14,14 +14,20 @@ const fields: FieldDef[] = [
     options: ["Activities", "Parent Guidance", "Centre Tour", "Announcements"],
   },
   {
+    // Videos are never uploaded to the project — only linked. Paste the
+    // YouTube watch/share/short link and the public gallery embeds it.
     name: "videoUrl",
-    label: "Video",
-    type: "upload",
-    accept: "video/*",
-    folder: "videos",
-    help: "Upload an MP4, or paste a YouTube link.",
+    label: "YouTube link",
+    required: true,
+    help: "Paste a YouTube link, e.g. https://www.youtube.com/watch?v=XXXXXXXXXXX or https://youtu.be/XXXXXXXXXXX",
   },
-  { name: "thumbnailUrl", label: "Thumbnail image", type: "upload", folder: "videos" },
+  {
+    name: "thumbnailUrl",
+    label: "Thumbnail image (optional)",
+    type: "upload",
+    folder: "videos",
+    help: "Leave empty to use the YouTube thumbnail automatically.",
+  },
   { name: "isPublished", label: "Published", type: "switch", help: "Visible on the Videos page" },
   { name: "description", label: "Description", type: "textarea" },
 ];
