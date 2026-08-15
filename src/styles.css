@@ -118,12 +118,58 @@
     color: var(--forest-deep);
   }
 
+  /*
+   * Long, unbroken strings (pasted URLs, long titles, emails typed into
+   * admin-managed content) must wrap instead of stretching their container
+   * and creating a horizontal scrollbar on phones.
+   */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  li,
+  dd,
+  dt,
+  span,
+  a,
+  blockquote,
+  td,
+  th,
+  label,
+  figcaption {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  img,
+  video,
+  iframe,
+  svg,
+  canvas {
+    max-width: 100%;
+  }
+
+  img,
+  video {
+    height: auto;
+  }
+
   :focus-visible {
     outline: 3px solid var(--leaf);
     outline-offset: 3px;
     border-radius: 4px;
   }
 }
+
+/* Preserves author line breaks in admin-entered long text without overflowing. */
+@utility prose-body {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 
 /* ---------- Utilities ---------- */
 
