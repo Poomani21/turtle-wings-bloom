@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSiteSettings } from "@/lib/cms";
 import {
   Award,
   Blocks,
@@ -21,7 +23,7 @@ import { CtaBand } from "@/components/site/Sections";
 import { SectionHeading } from "@/components/site/SectionHeading";
 import {
   learningDomains,
-  programFacts,
+  programFacts as staticProgramFacts,
   programObjectives,
   site,
   whoWeAre,
@@ -57,6 +59,24 @@ const icons: Record<string, ComponentType<{ className?: string; "aria-hidden"?: 
 };
 
 function Home() {
+  const settings = useQuery({ queryKey: ["settings", "site"], queryFn: fetchSiteSettings });
+  const s = settings.data;
+
+  const programFacts = staticProgramFacts.map((fact) => {
+    if (!s) return fact;
+
+    if (fact.label === "Age Group" && s.ageGroup) {
+      return { ...fact, value: s.ageGroup };
+    }
+    if (fact.label === "Timing" && s.startTime && s.endTime) {
+      return { ...fact, value: `${s.startTime} – ${s.endTime}` };
+    }
+    if (fact.label === "Seats" && s.maxChildren) {
+      return { ...fact, value: `${s.maxChildren} children` };
+    }
+    return fact;
+  });
+
   return (
     <>
       {/* HERO */}

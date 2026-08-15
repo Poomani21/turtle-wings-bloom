@@ -101,7 +101,7 @@ function AdminLayout() {
                   activeProps={{
                     className: "bg-forest-deep text-cream border-forest-deep shadow-card",
                   }}
-                  className="inline-flex min-h-10 w-full items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-bold text-foreground/85 transition-colors hover:bg-accent/60"
+                  className="inline-flex min-h-10 w-full items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-bold transition-colors hover:bg-accent/60"
                 >
                   <link.icon aria-hidden="true" className="size-4 shrink-0" />
                   <span className="truncate">{link.label}</span>

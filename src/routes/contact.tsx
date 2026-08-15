@@ -5,6 +5,7 @@ import { PageHero } from "@/components/site/Sections";
 import { InquiryForm } from "@/components/site/InquiryForm";
 import { site } from "@/lib/site-content";
 import { useSiteContact } from "@/lib/site-contact";
+import mapQr from "@/assets/turtlewings-map-qr-code.png";
 
 const title = "Contact & Enquiry — Book a Parent Consultation | Turtle Wings";
 const description =
@@ -95,7 +96,27 @@ function Contact() {
                 The Parent Consultation is complimentary. The child's 45-minute Admission Assessment
                 is a chargeable session conducted by an RCI Certified Special Educator.
               </p>
+              
             </div>
+            
+           {/* Centered QR Code Card */}
+<div className="flex flex-col">
+  <p className="mb-2 font-display text-sm font-bold text-foreground">Scan for Location</p>
+  <a
+    href={mapQr}
+    target="_blank"
+    rel="noreferrer"
+    className="inline-block transition-transform hover:scale-105"
+  >
+    <img
+      src={mapQr}
+      alt="Location Map QR Code"
+      className="size-28 rounded-xl border border-border bg-white p-2 object-contain shadow-sm"
+    />
+  </a>
+  <span className="mt-2 text-[11px] text-muted-foreground">Click or scan to open in Maps</span>
+</div>
+
           </Reveal>
 
           <Reveal variant="right">

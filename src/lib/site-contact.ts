@@ -20,6 +20,7 @@ export type SiteContact = {
   timings: string;
   closed: string;
   mapEmbedUrl?: string | undefined;
+  ageGroup?: string;
 };
 
 const clean = (value?: string) => (typeof value === "string" && value.trim() ? value.trim() : "");
@@ -53,6 +54,7 @@ export function resolveSiteContact(settings?: SiteSettings | null): SiteContact 
     timings,
     closed: clean(settings?.closed) || site.closed,
     mapEmbedUrl: clean(settings?.mapEmbedUrl) || site.mapEmbedUrl,
+    ageGroup: clean(settings?.ageGroup) || "3–10 years",
   };
 }
 

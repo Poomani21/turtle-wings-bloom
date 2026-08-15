@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Mail } from "lucide-react";
 import aboutImg from "@/assets/about-story-time.jpg";
+import founderImg from "@/assets/founder-neha.jpg"; // Adjust path to match your saved founder image filename
 import { Reveal } from "@/components/site/Reveal";
 import { founder, whoWeAre, site } from "@/lib/site-content";
 import { CtaBand } from "@/components/site/Sections";
@@ -60,7 +61,7 @@ function About() {
         </div>
       </section>
 
-      <section className="section-pad bg-accent/40" aria-labelledby="founder">
+      {/* <section className="section-pad bg-accent/40" aria-labelledby="founder">
         <div className="container-site max-w-4xl">
           <Reveal>
             <p className="hand-label">Meet the Founder</p>
@@ -96,7 +97,66 @@ function About() {
             </Link>
           </Reveal>
         </div>
-      </section>
+      </section> */}
+
+      <section className="section-pad bg-accent/40" aria-labelledby="founder">
+  <div className="container-site max-w-5xl">
+    <div className="grid items-start gap-8 lg:grid-cols-12">
+      {/* Founder Image Column */}
+      <Reveal variant="left" className="lg:col-span-5">
+        <div className="overflow-hidden rounded-3xl border border-border bg-card p-3 shadow-card">
+          <img
+            src={founderImg}
+            alt={`Portrait of ${founder.name}`}
+            width={600}
+            height={600}
+            loading="lazy"
+            className="aspect-square w-full rounded-2xl object-cover"
+          />
+        </div>
+      </Reveal>
+
+      {/* Founder Details Column */}
+      <div className="lg:col-span-7">
+        <Reveal>
+          <p className="hand-label">Meet the Founder</p>
+          <h2 id="founder" className="mt-2 text-3xl sm:text-4xl">
+            {founder.name}
+          </h2>
+          <p className="mt-2 font-bold text-muted-foreground">{founder.role}</p>
+          <a
+            href={`mailto:${founder.email}`}
+            className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-forest-deep underline decoration-secondary decoration-2 underline-offset-4"
+          >
+            <Mail aria-hidden="true" className="size-4" />
+            {founder.email}
+          </a>
+        </Reveal>
+
+        <div className="mt-6 space-y-4">
+          {founder.paragraphs.map((paragraph, i) => (
+            <Reveal
+              key={paragraph.slice(0, 24)}
+              delay={i * 70}
+              className="rounded-2xl border-l-4 border-secondary bg-card p-5 text-base leading-relaxed text-muted-foreground shadow-card sm:text-lg"
+            >
+              <p>{paragraph}</p>
+            </Reveal>
+          ))}
+        </div>
+
+        <Reveal delay={120} className="mt-8">
+          <Link
+            to="/program"
+            className="inline-flex min-h-12 items-center rounded-full bg-primary px-6 font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
+          >
+            Explore the Evening Learning Circle
+          </Link>
+        </Reveal>
+      </div>
+    </div>
+  </div>
+</section>
 
       <CtaBand />
     </>

@@ -3,11 +3,9 @@ import { CheckCircle2, Loader2, Upload, X } from "lucide-react";
 import { uploadImage, validateImageFile } from "@/lib/media-upload";
 
 /**
- * Image field for the admin forms: pick a local file, it is optimised in the
- * browser and committed to the site's `public/images/...` folder by the secure
- * server function. Firestore stores the resulting public path, e.g.
- * `/images/blogs/blog-abc.webp`. Existing https:// URLs keep working — the URL
- * box below stays editable.
+ * Image field for the admin forms: pick a local file, it is optimized in the
+ * browser and uploaded by the server function. Firestore stores the resulting 
+ * image path/URL. Existing https:// URLs keep working — the URL box below stays editable.
  */
 export function MediaUpload({
   id,
@@ -115,7 +113,12 @@ export function MediaUpload({
 
         {value && !busy ? (
           <div className="mt-3 overflow-hidden rounded-xl border border-border bg-card">
-            <img src={value} alt="" loading="lazy" className="aspect-[3/2] w-full object-cover" />
+            <img
+              src={value}
+              alt=""
+              loading="lazy"
+              className="aspect-[3/2] w-full object-cover"
+            />
           </div>
         ) : null}
       </div>
