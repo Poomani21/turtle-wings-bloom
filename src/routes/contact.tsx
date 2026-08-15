@@ -96,17 +96,6 @@ function Contact() {
                 is a chargeable session conducted by an RCI Certified Special Educator.
               </p>
             </div>
-            {contact.mapEmbedUrl ? (
-              <div className="overflow-hidden rounded-2xl border border-border shadow-card">
-                <iframe
-                  src={contact.mapEmbedUrl}
-                  title="Turtle Wings location map"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="aspect-[4/3] w-full border-0"
-                />
-              </div>
-            ) : null}
           </Reveal>
 
           <Reveal variant="right">
@@ -115,6 +104,37 @@ function Contact() {
           </Reveal>
         </div>
       </section>
+
+      {contact.mapEmbedUrl ? (
+        <section className="section-pad pt-0" aria-labelledby="find-us">
+          <div className="container-site">
+            <h2 id="find-us" className="text-2xl sm:text-3xl">
+              Find us on the map
+            </h2>
+            <p className="mt-2 text-sm break-words text-muted-foreground">
+              {contact.address.join(", ")}
+            </p>
+            <div className="mt-6 w-full max-w-full overflow-hidden rounded-2xl border border-border shadow-card">
+              <iframe
+                src={contact.mapEmbedUrl}
+                title="Turtle Wings location map"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+                className="block h-[320px] w-full border-0 sm:h-[380px] lg:h-[440px]"
+              />
+            </div>
+            <a
+              href={site.mapLinkUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-input px-4 text-sm font-bold"
+            >
+              <MapPin aria-hidden="true" className="size-4" /> Open in Google Maps
+            </a>
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }
