@@ -1,0 +1,73 @@
+rules_version = '2';
+
+/**
+ * Turtle Wings — Firestore security rules.
+ *
+ * Public website reads only published/active content plus settings/site.
+ * Every write (and every read of private data) requires the signed-in UID to
+ * exist in the admins/{uid} allowlist. Being authenticated is NOT enough.
+ * See SECURITY-RULES.md for the full model and how to add an admin.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /** Reusable admin check: the signed-in UID must have an admins/{uid} doc. */
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Admin allowlist itself: readable only by admins, never writable from the
+    // client (add/remove UIDs from the Firebase console or a trusted backend).
+    match /admins/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Blogs — public may read published posts only.
+    match /blogs/{blogId} {
+      allow read: if resource.data.isPublished == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Videos — public may read published videos only.
+    match /videos/{videoId} {
+      allow read: if resource.data.isPublished == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Programs — public may read active programs only.
+    match /programs/{programId} {
+      allow read: if resource.data.status == "active" || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Site settings — settings/site is public because the website renders it.
+    match /settings/site {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /settings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Members — the public /members page shows only members explicitly marked
+    // isPublic == true by an admin. Everything else stays admin-only.
+    match /members/{memberId} {
+      allow read: if resource.data.isPublic == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Enquiries — the public contact form may create only.
+    // Reading, updating and deleting enquiries is admin-only.
+    match /enquiries/{enquiryId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

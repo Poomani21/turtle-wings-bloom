@@ -1,0 +1,48 @@
+rules_version = '2';
+
+/**
+ * Turtle Wings — Firebase Storage security rules.
+ *
+ * Uploads are made by the admin CMS via uploadFile(folder, file), which writes
+ * to `<collection>/<timestamp>-<filename>` — i.e. blogs/, videos/, programs/
+ * and members/. Only folders whose media is displayed on the public website
+ * are publicly readable. Every write requires the admins/{uid} allowlist.
+ * See SECURITY-RULES.md.
+ */
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    /** Reusable admin check against the Firestore admins/{uid} allowlist. */
+    function isAdmin() {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    // Public website media: anyone may read, only admins may upload/replace.
+    match /blogs/{fileName=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /videos/{fileName=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /programs/{fileName=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Member photos: readable because the public /members page renders the
+    // photos of members an admin marked isPublic == true. Admins should only
+    // upload a photo for a child whose family has given permission.
+    match /members/{fileName=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Everything else is denied.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
