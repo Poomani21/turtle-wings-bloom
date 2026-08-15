@@ -27,6 +27,18 @@ export const site = {
   website: "www.turtlewings.in",
   timings: "Monday – Friday: 5:00 PM – 7:00 PM",
   closed: "Closed: Saturdays, Sundays & Public/Bank Holidays",
+  /** Keyless Google Maps embed for the centre (overridable in Admin → Settings). */
+  mapEmbedUrl:
+    "https://www.google.com/maps?q=" +
+    encodeURIComponent(
+      "Hall No 3, Concorde Clubhouse, near Concorde Sylvan View, Concorde Wind Rush Apartment, Singena Agrahara, Andapura, Karnataka 560099",
+    ) +
+    "&output=embed",
+  mapLinkUrl:
+    "https://www.google.com/maps/search/?api=1&query=" +
+    encodeURIComponent(
+      "Hall No 3, Concorde Clubhouse, near Concorde Sylvan View, Concorde Wind Rush Apartment, Singena Agrahara, Andapura, Karnataka 560099",
+    ),
 } as const;
 
 export const whoWeAre = [
