@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, MessageCircle } from "lucide-react";
 import { useSiteContact } from "@/lib/site-contact";
 import { submitEnquiry } from "@/lib/cms";
 
@@ -13,12 +13,45 @@ import { submitEnquiry } from "@/lib/cms";
 
 type Errors = Partial<Record<string, string>>;
 
+/** WhatsApp business number in international format (no +, no spaces). */
+const WHATSAPP_NUMBER = "919620135222";
+
+type Enquiry = {
+  name: string;
+  email: string;
+  phone: string;
+  childAge: string;
+  area: string;
+  program: string;
+  preferredContact: string;
+  message: string;
+};
+
+/** Builds the wa.me link containing every field the parent filled in. */
+function whatsappLink(enquiry: Enquiry): string {
+  const lines = [
+    "Hello Turtle Wings,",
+    "",
+    "New Enquiry",
+    `Name: ${enquiry.name}`,
+    `Phone: ${enquiry.phone}`,
+    `Email: ${enquiry.email}`,
+  ];
+  if (enquiry.childAge) lines.push(`Child's Age: ${enquiry.childAge}`);
+  if (enquiry.area) lines.push(`Area / Location: ${enquiry.area}`);
+  if (enquiry.program) lines.push(`Program Interested In: ${enquiry.program}`);
+  if (enquiry.preferredContact) lines.push(`Preferred Contact: ${enquiry.preferredContact}`);
+  lines.push(`Message: ${enquiry.message}`);
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
+}
+
 const programOptions = ["Evening Group Program (3–10 years)", "Parent Consultation", "Not sure yet"];
 
 export function InquiryForm() {
   const contact = useSiteContact();
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
 
   function validate(data: FormData): Errors {
     const next: Errors = {};
@@ -59,19 +92,25 @@ export function InquiryForm() {
 
     if (status === "loading") return;
     setStatus("loading");
+    const enquiry: Enquiry = {
+      name: String(data.get("name") ?? "").trim(),
+      email: String(data.get("email") ?? "").trim(),
+      phone: String(data.get("phone") ?? "").trim(),
+      childAge: String(data.get("childAge") ?? "").trim(),
+      area: String(data.get("area") ?? "").trim(),
+      program: String(data.get("program") ?? "").trim(),
+      preferredContact: String(data.get("preferredContact") ?? "").trim(),
+      message: String(data.get("message") ?? "").trim(),
+    };
+    const url = whatsappLink(enquiry);
     try {
-      await submitEnquiry({
-        name: String(data.get("name") ?? "").trim(),
-        email: String(data.get("email") ?? "").trim(),
-        phone: String(data.get("phone") ?? "").trim(),
-        childAge: String(data.get("childAge") ?? "").trim(),
-        area: String(data.get("area") ?? "").trim(),
-        program: String(data.get("program") ?? "").trim(),
-        preferredContact: String(data.get("preferredContact") ?? "").trim(),
-        message: String(data.get("message") ?? "").trim(),
-      });
+      await submitEnquiry(enquiry);
+      setWhatsappUrl(url);
       setStatus("success");
       form.reset();
+      // Hand the same enquiry over to WhatsApp. Browsers may block a popup that
+      // opens after an await, so the success panel always shows the link too.
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error("Enquiry submission failed", error);
       setStatus("error");
@@ -90,13 +129,28 @@ export function InquiryForm() {
           We have received your enquiry and will contact you to schedule your complimentary Parent
           Consultation. You can also reach us on {contact.phone}.
         </p>
-        <button
-          type="button"
-          onClick={() => setStatus("idle")}
-          className="mt-6 inline-flex min-h-11 items-center rounded-full border border-input px-5 font-bold transition-colors hover:bg-accent"
-        >
-          Send another enquiry
-        </button>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          {whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-secondary px-5 font-extrabold text-secondary-foreground"
+            >
+              <MessageCircle aria-hidden="true" className="size-4" /> Send on WhatsApp
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setWhatsappUrl(null);
+              setStatus("idle");
+            }}
+            className="inline-flex min-h-11 items-center rounded-full border border-input px-5 font-bold transition-colors hover:bg-accent"
+          >
+            Send another enquiry
+          </button>
+        </div>
       </div>
     );
   }

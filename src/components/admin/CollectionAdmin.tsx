@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   adminDeleteWithMedia,
+  cleanupReplacedImages,
   adminList,
   adminSave,
   type CollectionName,
@@ -48,6 +49,9 @@ export function CollectionAdmin({
 }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Row | null>(null);
+  // The record as it was when the editor opened, so a replaced image file can be
+  // cleaned up after a successful save.
+  const [original, setOriginal] = useState<Row | null>(null);
   
 
   const list = useQuery({ queryKey: ["admin", name], queryFn: () => adminList<Row>(name) });
@@ -56,9 +60,11 @@ export function CollectionAdmin({
     mutationFn: async (row: Row) => {
       const { id, ...rest } = row;
       await adminSave(name, id || null, rest);
+      await cleanupReplacedImages(name, original, rest);
     },
     onSuccess: async () => {
       setDraft(null);
+      setOriginal(null);
       await queryClient.invalidateQueries({ queryKey: ["admin", name] });
     },
   });
@@ -85,7 +91,10 @@ export function CollectionAdmin({
         {allowCreate ? (
           <button
             type="button"
-            onClick={() => setDraft({ id: "", ...defaults })}
+            onClick={() => {
+              setOriginal(null);
+              setDraft({ id: "", ...defaults });
+            }}
             className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full bg-secondary px-4 text-sm font-extrabold text-secondary-foreground"
           >
             <Plus aria-hidden="true" className="size-4" /> New
@@ -105,7 +114,10 @@ export function CollectionAdmin({
             <h2 className="font-display text-lg font-bold text-forest-deep">
               {draft.id ? "Edit entry" : "New entry"}
             </h2>
-            <button type="button" onClick={() => setDraft(null)} aria-label="Close editor">
+            <button type="button" onClick={() => {
+              setDraft(null);
+              setOriginal(null);
+            }} aria-label="Close editor">
               <X aria-hidden="true" className="size-5" />
             </button>
           </div>
@@ -244,7 +256,10 @@ export function CollectionAdmin({
                   {actions?.(row)}
                   <button
                     type="button"
-                    onClick={() => setDraft({ ...defaults, ...row })}
+                    onClick={() => {
+                      setOriginal(row);
+                      setDraft({ ...defaults, ...row });
+                    }}
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-input px-3 text-sm font-bold"
                   >
                     <Pencil aria-hidden="true" className="size-3.5" /> Edit

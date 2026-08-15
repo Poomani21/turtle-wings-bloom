@@ -52,7 +52,7 @@ export function resolveSiteContact(settings?: SiteSettings | null): SiteContact 
     website: clean(settings?.website) || site.website,
     timings,
     closed: clean(settings?.closed) || site.closed,
-    mapEmbedUrl: clean(settings?.mapEmbedUrl) || undefined,
+    mapEmbedUrl: clean(settings?.mapEmbedUrl) || site.mapEmbedUrl,
   };
 }
 

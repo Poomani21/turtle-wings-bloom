@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { fetchPublishedBlogs } from "./cms";
 import type { BlogDoc } from "./cms-types";
 import type { Post } from "./blog-data";
@@ -50,4 +51,31 @@ export function mergePostsBySlug(staticPosts: Post[], firebasePosts: Post[]): Po
   for (const post of staticPosts) if (post.slug) merged.set(post.slug, post);
   for (const post of firebasePosts) if (post.slug) merged.set(post.slug, post);
   return [...merged.values()].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+}
+
+/**
+ * Shared, deterministic loader for published Firebase posts.
+ *
+ * `placeholderData` (not `initialData`) is used deliberately: `initialData`
+ * seeds the cache as *fresh*, so with a `staleTime` the very first mount after a
+ * hard reload would skip the network request entirely and dynamic posts would
+ * appear only sometimes. With placeholder data the request always runs, static
+ * posts stay visible while it is in flight, and a failure resolves to an empty
+ * list instead of blanking the page.
+ */
+export function usePublishedFirebasePosts() {
+  const query = useQuery({
+    queryKey: ["published-firebase-blogs"],
+    queryFn: fetchPublishedFirebasePosts,
+    placeholderData: [] as Post[],
+    staleTime: 30_000,
+    refetchOnMount: "always",
+    retry: 1,
+  });
+
+  return {
+    posts: query.data ?? [],
+    /** True until this mount has actually finished asking Firebase. */
+    isLoading: !query.isFetchedAfterMount,
+  };
 }

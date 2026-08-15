@@ -147,6 +147,32 @@ export function imagePathsOf(row: Record<string, unknown>): string[] {
  * True when any *other* record (in any collection) still points at `path`.
  * Used so deleting one entry never removes an image shared by another record.
  */
+export async function isImageReferencedAnywhere(path: string): Promise<boolean> {
+  return isImageReferencedElsewhere(path, { name: "programs", id: "__none__" });
+}
+
+/**
+ * After an edit, removes image files the record no longer points at — but only
+ * when no other record (including the just-saved one) still references them.
+ * Never throws: a failed cleanup must not break saving.
+ */
+export async function cleanupReplacedImages(
+  name: CollectionName,
+  previous: Record<string, unknown> | null,
+  next: Record<string, unknown>,
+): Promise<void> {
+  if (!previous) return;
+  const keep = imagePathsOf(next);
+  const stale = imagePathsOf(previous).filter((path) => !keep.includes(path));
+  for (const path of stale) {
+    try {
+      if (!(await isImageReferencedAnywhere(path))) await deleteManagedImage(path);
+    } catch {
+      /* keep the file rather than risk removing one still in use */
+    }
+  }
+}
+
 export async function isImageReferencedElsewhere(
   path: string,
   skip: { name: CollectionName; id: string },

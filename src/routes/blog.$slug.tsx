@@ -1,10 +1,9 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CalendarDays, User } from "lucide-react";
 import { Reveal } from "@/components/site/Reveal";
 import { CtaBand } from "@/components/site/Sections";
 import { getPost, posts as staticPosts, formatDate, type Post } from "@/lib/blog-data";
-import { fetchPublishedFirebasePosts, mergePostsBySlug } from "@/lib/blog-firebase";
+import { mergePostsBySlug, usePublishedFirebasePosts } from "@/lib/blog-firebase";
 
 export const Route = createFileRoute("/blog/$slug")({
   loader: ({ params }) => {
@@ -58,22 +57,16 @@ function BlogPost() {
   const { post: staticPost } = Route.useLoaderData();
   const { slug } = Route.useParams();
 
-  const { data: firebasePosts, isPending } = useQuery({
-    queryKey: ["published-firebase-blogs"],
-    queryFn: fetchPublishedFirebasePosts,
-    initialData: [],
-    staleTime: 30_000,
-    retry: 1,
-  });
+  const { posts: firebasePosts, isLoading } = usePublishedFirebasePosts();
 
-  const all = mergePostsBySlug(staticPosts, firebasePosts ?? []);
+  const all = mergePostsBySlug(staticPosts, firebasePosts);
   // An admin post with the same slug is the newer edit of that article, so it
   // takes precedence; otherwise the static article is used.
-  const firebasePost = (firebasePosts ?? []).find((p) => p.slug === slug);
+  const firebasePost = firebasePosts.find((p) => p.slug === slug);
   const post = firebasePost ?? staticPost;
 
   if (post) return <BlogPostView post={post} related={all} />;
-  if (isPending) {
+  if (isLoading) {
     return (
       <div className="container-site py-24 text-sm text-muted-foreground">Loading article…</div>
     );
