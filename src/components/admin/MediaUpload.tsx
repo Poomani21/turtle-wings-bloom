@@ -1,16 +1,18 @@
 import { useRef, useState } from "react";
 import { CheckCircle2, Loader2, Upload, X } from "lucide-react";
-import { uploadFile, validateUpload } from "@/lib/cms";
+import { uploadImage, validateImageFile } from "@/lib/media-upload";
 
 /**
- * Media field for the admin forms: pick a local file, upload it to Firebase
- * Storage and store the resulting download URL. Existing HTTPS URLs keep
- * working — the URL box below stays editable.
+ * Image field for the admin forms: pick a local file, it is optimised in the
+ * browser and committed to the site's `public/images/...` folder by the secure
+ * server function. Firestore stores the resulting public path, e.g.
+ * `/images/blogs/blog-abc.webp`. Existing https:// URLs keep working — the URL
+ * box below stays editable.
  */
 export function MediaUpload({
   id,
   value,
-  accept = "image/*",
+  accept = "image/jpeg,image/png,image/webp",
   folder,
   onChange,
 }: {
@@ -26,7 +28,6 @@ export function MediaUpload({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const isVideoField = accept.startsWith("video");
   const busy = progress !== null;
 
   async function handleFile(file: File) {
@@ -34,7 +35,7 @@ export function MediaUpload({
     setDone(false);
     setFileName(file.name);
     try {
-      validateUpload(file, accept);
+      validateImageFile(file);
     } catch (err) {
       setError((err as Error).message);
       setProgress(null);
@@ -42,7 +43,7 @@ export function MediaUpload({
     }
     setProgress(0);
     try {
-      const url = await uploadFile(folder, file, setProgress);
+      const url = await uploadImage(folder, file, setProgress);
       onChange(url);
       setDone(true);
     } catch (err) {
@@ -53,7 +54,7 @@ export function MediaUpload({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       <div className="rounded-2xl border border-dashed border-input bg-background/60 p-4">
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -63,14 +64,12 @@ export function MediaUpload({
             className="inline-flex min-h-10 items-center gap-2 rounded-full bg-secondary px-4 text-sm font-extrabold text-secondary-foreground disabled:opacity-60"
           >
             <Upload aria-hidden="true" className="size-4" />
-            {value ? (isVideoField ? "Replace video" : "Replace image") : isVideoField ? "Choose video" : "Choose image"}
+            {value ? "Replace image" : "Choose image"}
           </button>
           {fileName ? (
             <span className="min-w-0 truncate text-xs text-muted-foreground">{fileName}</span>
           ) : (
-            <span className="text-xs text-muted-foreground">
-              {isVideoField ? "MP4 up to 200 MB" : "JPG, PNG or WebP up to 8 MB"}
-            </span>
+            <span className="text-xs text-muted-foreground">JPG, PNG or WebP up to 12 MB</span>
           )}
         </div>
 
@@ -102,7 +101,7 @@ export function MediaUpload({
         ) : null}
 
         {error ? (
-          <p role="alert" className="mt-3 flex items-start gap-2 text-xs text-destructive">
+          <p role="alert" className="mt-3 flex items-start gap-2 text-xs break-words text-destructive">
             <X aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" /> {error}
           </p>
         ) : null}
@@ -110,17 +109,13 @@ export function MediaUpload({
         {done && !busy ? (
           <p role="status" className="mt-3 flex items-center gap-2 text-xs font-bold text-leaf">
             <CheckCircle2 aria-hidden="true" className="size-3.5" />
-            {isVideoField ? "Video uploaded successfully" : "Image uploaded successfully"}
+            Image saved to the website
           </p>
         ) : null}
 
         {value && !busy ? (
           <div className="mt-3 overflow-hidden rounded-xl border border-border bg-card">
-            {isVideoField ? (
-              <video src={value} controls preload="metadata" className="aspect-video w-full object-cover" />
-            ) : (
-              <img src={value} alt="" loading="lazy" className="aspect-[3/2] w-full object-cover" />
-            )}
+            <img src={value} alt="" loading="lazy" className="aspect-[3/2] w-full object-cover" />
           </div>
         ) : null}
       </div>
@@ -128,8 +123,8 @@ export function MediaUpload({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="…or paste an https:// link"
-        className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+        placeholder="…or paste an image path / https:// link"
+        className="min-h-11 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-sm"
       />
     </div>
   );
