@@ -129,13 +129,28 @@ export function InquiryForm() {
           We have received your enquiry and will contact you to schedule your complimentary Parent
           Consultation. You can also reach us on {contact.phone}.
         </p>
-        <button
-          type="button"
-          onClick={() => setStatus("idle")}
-          className="mt-6 inline-flex min-h-11 items-center rounded-full border border-input px-5 font-bold transition-colors hover:bg-accent"
-        >
-          Send another enquiry
-        </button>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          {whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-secondary px-5 font-extrabold text-secondary-foreground"
+            >
+              <MessageCircle aria-hidden="true" className="size-4" /> Send on WhatsApp
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setWhatsappUrl(null);
+              setStatus("idle");
+            }}
+            className="inline-flex min-h-11 items-center rounded-full border border-input px-5 font-bold transition-colors hover:bg-accent"
+          >
+            Send another enquiry
+          </button>
+        </div>
       </div>
     );
   }
