@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, MessageCircle } from "lucide-react";
 import { useSiteContact } from "@/lib/site-contact";
 import { submitEnquiry } from "@/lib/cms";
 
